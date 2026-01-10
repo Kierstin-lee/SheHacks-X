@@ -4,7 +4,7 @@ export interface ClothingItem {
     id: string;
     imageUrl: string;
     type: "top" | "bottom" | "shoes" | "outerwear" | "accessories";
-    colour: string;
+    color: string;
     season: "spring" | "summer" | "fall" | "winter";
     occasion: string[];
 }
