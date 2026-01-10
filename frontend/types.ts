@@ -1,4 +1,4 @@
-// types.ts
+// types.ts - stores the stuff
 
 export interface ClothingItem {
     id: string;

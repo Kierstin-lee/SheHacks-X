@@ -1,10 +1,30 @@
-# main.py
+# main.py - *routes and coordinates*, the backend controller for the app balh
+# receives requests from the website, sends them to the right AI / logic modules, and returns clean, usable results back to the frontend
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+import os
+import openai
+
+load_dotenv() # reads the env file
+
+openai.api_key = os.getenv("OPENAI_API_KEY") # Gets the API key
+
+# Tester
+if openai.api_key:
+    print("OpenAI is successful")
+else:
+    print("fail")    
+ 
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from models import ClothingItem, OutfitRequest, OutfitResponse
 
-# Temp title
+from models import ClothingItem, OutfitRequest, OutfitResponse
+from outfit_selector import generate_outfit
+from storage import get_closet, add_item
+from ai_interface import analyze_clothing_image, generate_reasoning, suggest_accessories, suggest_makeup
+from normalization import normalized_item
+
+# App creation, creates the backend server and give the API a name
 app = FastAPI(title="My Wardrobe App")
 
 # 1. CORS, so frontend can talk to backend
@@ -21,34 +41,54 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# 2. Sample closet, for testing
-sample_closet = [
-    ClothingItem(id="1", image_url="top1.png", type="top", color="white", season="summer", occasion=["casual"]),
-    ClothingItem(id="2", image_url="bottom1.png", type="bottom", color="blue", season="summer", occasion=["casual", "work"]),
-    ClothingItem(id="3", image_url="shoes1.png", type="shoes", color="white", season="summer", occasion=["casual", "athletic"]),
-    ClothingItem(id="4", image_url="outerwear1.png", type="outerwear", color="brown", season="winter", occasion=["casual", "work"]),
-]
-
-# 3. Root endpoint (existing)
+# 2. Root endpoint (existing) - confirms the backend is alive
 @app.get("/")
 def root():
     return {"status": "backend running"}
 
-# 4. Outfit generator endpoint
+# 3. AI System 1 - Image upload & tagging
+# uploads a photo of a clothing item
+@app.post("/clothing/upload", response_model=ClothingItem)
+async def upload_clothing(image: UploadFile = File(...)):
+    
+    image_bytes = await image.read()
+
+    # AI vision analysis(system 1) "What clothing item is this?"
+    ai_tags = analyze_clothing_image(image_bytes)
+
+    # Normalize AI output - converts AI guesses into controlled categories
+    clean_item = normalized_item(ai_tags)
+
+    # Store item
+    stored_item = add_item(clean_item)
+
+    return stored_item
+
+# 4. AI System 2 - Outfit generator endpoint
 @app.post("/outfits/generate", response_model=OutfitResponse)
 def generate_outfit(request: OutfitRequest):
-    # For now: return a fixed outfit
-    outfit = {
-        "top": sample_closet[0],
-        "bottom": sample_closet[1],
-        "shoes": sample_closet[2],
-        "outerwear": None
-    }
-    accessories = [sample_closet[3]]
+
+    closet = get_closet()
+    
+    # Generate outfit - filters invalid items(rules), scores items(AI logic), generates one outfit, avoids repeats
+    outfit = generate_outfit (
+        closet=closet,
+        temperature=request.temperature,
+        occasion=request.occasion,
+        preferences=request.preferences,
+        exclude_ids=request.exclude_item_ids
+    )
+
+    accessories = suggest_accessories(request.occasion.value)
+
+    makeup = suggest_makeup(request.occasion.value)
+
+    # Uses OpenAI to explain why the outfit was chosen
+    reasoning = generate_reasoning (outfit, request.temperature, request.occasion.value, request.preferences)
 
     return OutfitResponse(
         outfit=outfit,
-        accessories=accessories,
-        makeup="natural makeup",
-        reasoning=f"This outfit balances comfort and style for {request.temperature}°C and a {request.occasion} occasion."
+        reasoning=reasoning,
+        makeup=makeup,
+        accessories=accessories
     )
