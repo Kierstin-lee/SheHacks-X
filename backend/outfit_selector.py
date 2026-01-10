@@ -7,10 +7,10 @@ import random
 
 # Sample closet (for testing purposes)
 CLOSET: List[ClothingItem] = [
-    ClothingItem(id="1", image_url="top1.png", type="top", color="white", season="summer", occasion=["casual"]),
-    ClothingItem(id="2", image_url="bottom1.png", type="bottom", subtype="pants", color="blue", season="summer", occasion=["casual", "work"]),
-    ClothingItem(id="3", image_url="shoes1.png", type="shoes", color="white", season="summer", occasion=["casual", "athletic"]),
-    ClothingItem(id="4", image_url="outerwear1.png", type="outerwear", color="brown", season="winter", occasion=["casual", "work"]),
+    ClothingItem(id="1", image_url="top1.png", type="top", color="white", season=["summer"], occasion=["casual"]),
+    ClothingItem(id="2", image_url="bottom1.png", type="bottom", subtype="pants", color="blue", season=["summer"], occasion=["casual", "business"]),
+    ClothingItem(id="3", image_url="shoes1.png", type="shoes", color="white", season=["summer"], occasion=["casual", "athletic"]),
+    ClothingItem(id="4", image_url="outerwear1.png", type="outerwear", color="brown", season=["winter"], occasion=["casual", "business"]),
 ]
 
 # Weather/temperature converter

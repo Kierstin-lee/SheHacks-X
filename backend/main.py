@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import ClothingItem, OutfitRequest, OutfitResponse
 from outfit_selector import generate_outfit
 from storage import get_closet, add_item
-from ai_interface import analyze_clothing_image, generate_reasoning, suggest_accessories, suggest_makeup
+from ai_interface import analyze_clothing_image, suggest_accessories, suggest_makeup
 from normalization import normalized_item
 
 # App creation, creates the backend server and give the API a name
