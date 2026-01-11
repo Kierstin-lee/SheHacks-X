@@ -1,50 +1,96 @@
-# outfit_selector.py = This is a Mock up that (as of now) does not use AI decision making
+# outfit_selector.py - Rules + scoring + variation blah
 
-from typing import List
-from models import ClothingItem, OutfitRequest, OutfitResponse
+from typing import List, Optional, Dict
+from models import ClothingItem, OutfitRequest, Outfit
+from ai_interface import suggest_accessories, suggest_makeup
 
-# Sample closet
+import random
+
+# Sample closet (for testing purposes)
 CLOSET: List[ClothingItem] = [
-    ClothingItem(id="1", image_url="top1.png", type="top", color="white", season="summer", occasion=["casual"]),
-    ClothingItem(id="2", image_url="bottom1.png", type="bottom", color="blue", season="summer", occasion=["casual", "work"]),
-    ClothingItem(id="3", image_url="shoes1.png", type="shoes", color="white", season="summer", occasion=["casual", "athletic"]),
-    ClothingItem(id="4", image_url="outerwear1.png", type="outerwear", color="brown", season="winter", occasion=["casual", "work"]),
+    ClothingItem(id="1", image_url="top1.png", type="top", color="white", season=["summer"], occasion=["casual"]),
+    ClothingItem(id="2", image_url="bottom1.png", type="bottom", subtype="pants", color="blue", season=["summer"], occasion=["casual", "business"]),
+    ClothingItem(id="3", image_url="shoes1.png", type="shoes", color="white", season=["summer"], occasion=["casual", "athletic"]),
+    ClothingItem(id="4", image_url="outerwear1.png", type="outerwear", color="brown", season=["winter"], occasion=["casual", "business"]),
 ]
 
-def select_Outfit(request: OutfitRequest) -> OutfitResponse:
-    # Simple rule-based selection
-    outfit_items = {}
-    accessories = []
+# Weather/temperature converter
+def get_weather_category(temp: int) -> str:
+    if temp <= 0:
+        return "cold"
+    elif temp <= 15:
+        return "mild"
+    else:
+        return "hot"
+    
+# Score items
+def score_items(items: List[ClothingItem], occasion: str, preferences: List[str]) -> List[Dict]:
+    scored = []
+    for item in items:
+        score = 0
+        # Match occasion
+        if occasion in item.occasion:
+            score += 2
 
-    # Filter by occasion
-    candidates = [item for item in CLOSET if request.occasion in item.occasion]
+        # Simple preference scoring (comfortable favors sneakers/sweats)
+        if "comfortable" in preferences and item.type in ["top", "bottom", "shoes"]:
+            score += 1
 
-    # Select top
-    tops = [item for item in candidates if item.type == "top"]
-    outfit_items["top"] = tops[0] if tops else None
+        scored.append({"item": item, "score": score})
 
-    # Select bottom
-    bottoms = [item for item in candidates if item.type == "bottom"]
-    outfit_items["bottom"] = bottoms[0] if bottoms else None
+    # Sort descending
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored
 
-    # Select shoes
-    shoes = [item for item in candidates if item.type == "shoes"]
-    outfit_items["shoes"] = shoes[0] if bottoms else None
+# Pick top candidates wtih randomness
+def choose_top(scored_list: List[Dict]) -> Optional[ClothingItem]:
+    if not scored_list:
+        return None
+    top_candidates = scored_list[:3]  
+    return random.choice(top_candidates)["item"]
 
-    # Select outerwear (if cold)
-    if request.temperature <= 0:
-        outerwear = [item for item in candidates if item.type == "outerwear"]
-        outfit_items["outerwear"] = outerwear[0] if outerwear else None
+# Determine if outerwear should be included or not
+def select_outerwear(items: List[ClothingItem], weather:str) -> Optional[ClothingItem]:
+    outerwear_items = [i for i in items if i.type == "outerwear"]
+    if not outerwear_items:
+        return None
+    if weather == "cold":
+        return outerwear_items[0]  # must include
+    elif weather == "mild":
+        return random.choice([outerwear_items[0], None])  # optional
+    else:
+        return None  # hot → no outerwear
 
-    # Select accessory (might have to change this)
-    accessories = [item for item in candidates if item.type == "accessories"][:2]
+# Main outfit selection function
+def generate_outfit(request: OutfitRequest) -> Dict[str, Optional[ClothingItem]]:
+    weather = get_weather_category(request.temperature)
 
-    # Mock reasoning
-    reason = "This outfit balances style and comfort based on temperature and occasion"
+    # Filter closet by occasion and exclude_item_ids
+    candidates = [item for item in CLOSET if request.occasion.value in item.occasion and item.id not in (request.exclude_item_ids or [])]
 
-    return OutfitResponse(
-        outfit=outfit_items,
-        accessories=accessories,
-        makeup="natural makeup",
-        reasoning=reason
-    )
+    if weather in ["cold", "mild"]:
+        candidates = [
+            item for item in candidates
+            if not (item.type == "bottom" and item.subtype in ["shorts", "skirt"])
+        ]
+
+    # Separate by type
+    tops = [i for i in candidates if i.type == "top"]
+    bottoms = [i for i in candidates if i.type == "bottom"]
+    shoes = [i for i in candidates if i.type == "shoes"]
+
+    Outfit = {
+        "top": choose_top(score_items(tops, request.occasion.value, request.preferences)),
+        "bottom": choose_top(score_items(bottoms, request.occasion.value, request.preferences)),
+        "shoes": choose_top(score_items(shoes, request.occasion.value, request.preferences)),
+        "outerwear": select_outerwear(candidates, weather)
+    }
+
+    accessories = suggest_accessories(request.occasion.value)
+    makeup = suggest_makeup(request.occasion.value)
+
+    return {
+        "outfit": Outfit,
+        "accessories": accessories,
+        "makeup": makeup
+    }
