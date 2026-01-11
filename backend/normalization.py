@@ -1,6 +1,6 @@
 # normalization.py - Cleans up the AI output blah
 
-from models import ClothingItem, ClothingType, Season, Occasion
+from models import ClothingItem, Season, Occasion
 
 def normalized_item(ai_tags: dict) -> ClothingItem:
     """
