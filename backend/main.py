@@ -15,12 +15,15 @@ if openai.api_key:
 else:
     print("fail")    
  
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
+from uuid import uuid4
 
 from models import ClothingItem, OutfitRequest, OutfitResponse
 from outfit_selector import generate_outfit
-from storage import get_closet, add_item
+from storage import get_closet, add_item, update_item
 from ai_interface import analyze_clothing_image, suggest_accessories, suggest_makeup
 from normalization import normalized_item
 
@@ -47,21 +50,34 @@ def root():
     return {"status": "backend running"}
 
 # 3. AI System 1 - Image upload & tagging
-# uploads a photo of a clothing item
-@app.post("/clothing/upload", response_model=ClothingItem)
-async def upload_clothing(image: UploadFile = File(...)):
+class ClothingAnalyzeRequest(BaseModel):
+    image_url: str
+
+@app.post("/clothing/analyze", response_model=ClothingItem)
+def analyze_clothing(req: ClothingAnalyzeRequest):
+    """
+    Takes an image URL, returns AI predicted tags for review.
+    Frontend should display these tags and allow manual override.
+    """
+    ai_tags = analyze_clothing_image(req.image_url)
+    if not ai_tags:
+        raise HTTPException(status_code=500, detail="AI analysis failed")
     
-    image_bytes = await image.read()
+    # Normalize tags into ClothingItem object (but do NOT store yet)
+    temp_item = ClothingItem(
+        id=str(uuid4()),
+        image_url=req.image_url,
+        type=ai_tags["type"],
+        color=ai_tags["color"],
+        season=ai_tags["season"],
+        occasion=ai_tags["occasion"]
+    )
+    return temp_item
 
-    # AI vision analysis(system 1) "What clothing item is this?"
-    ai_tags = analyze_clothing_image(image_bytes)
-
-    # Normalize AI output - converts AI guesses into controlled categories
-    clean_item = normalized_item(ai_tags)
-
-    # Store item
-    stored_item = add_item(clean_item)
-
+# NEW Save clothing after manual override
+@app.post("/clothing/save", response_model=ClothingItem)
+def save_clothing(item: ClothingItem):
+    stored_item = add_item(item)
     return stored_item
 
 # 4. AI System 2 - Outfit generator endpoint
@@ -80,15 +96,21 @@ def generate_outfit(request: OutfitRequest):
     )
 
     accessories = suggest_accessories(request.occasion.value)
-
     makeup = suggest_makeup(request.occasion.value)
 
     # Uses OpenAI to explain why the outfit was chosen
-    reasoning = generate_reasoning (outfit, request.temperature, request.occasion.value, request.preferences)
+    reasoning = f"Generated outfit based on {request.occasion.value}, temperature {request.temperature}, preferences {request.preferences}"
 
-    return OutfitResponse(
+    return OutfitResponse (
         outfit=outfit,
-        reasoning=reasoning,
         makeup=makeup,
-        accessories=accessories
+        accessories=accessories,
+        reasoning=reasoning
     )
+
+@app.put("/clothing/update/{item_id}", response_model=ClothingItem)
+def manual_override(item_id: str, updated_fields: dict = Body(...)):
+    """
+    Allows the user to manually correct AI tags for a clothing item
+    """
+    return update_item(item_id, updated_fields)

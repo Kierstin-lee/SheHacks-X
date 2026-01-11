@@ -2,6 +2,7 @@
 
 from typing import List, Optional, Dict
 from models import ClothingItem, OutfitRequest, Outfit
+from ai_interface import suggest_accessories, suggest_makeup
 
 import random
 
@@ -34,10 +35,6 @@ def score_items(items: List[ClothingItem], occasion: str, preferences: List[str]
         # Simple preference scoring (comfortable favors sneakers/sweats)
         if "comfortable" in preferences and item.type in ["top", "bottom", "shoes"]:
             score += 1
-
-        # Match season
-        if season in item.season:
-            score += 3     
 
         scored.append({"item": item, "score": score})
 

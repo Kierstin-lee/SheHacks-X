@@ -50,8 +50,7 @@ def analyze_clothing_image(image_url: str) -> Dict:
             return normalize_tags(ai_tags)
 
     except Exception as e:
-        print("Failed to parse AI JSON:", e)
-        print("Raw AI output:", text if 'text' in locals() else "No text returned")
+        print("AI analysis failed:", e)
         return None
 
 # Normalize AI output
@@ -64,19 +63,10 @@ def normalize_tags(ai_tags):
         return t if t in ["top","bottom","shoes","outerwear"] else "top"
 
     def normalize_color(c):
-        if not c:
-            return "neutral"
-        
-        c = c.lower()
-        # List of common base colors
         base_colors = ["white","black","blue","red","green","yellow","brown","orange","pink","purple","gray","beige","cream"]
-
-        # Split words and find the first word that matches a base color
-        for word in c.split():
+        for word in c.lower().split():
             if word in base_colors:
                 return word
-
-        # fallback if no match
         return "neutral"
 
     def normalize_season(seasons):
