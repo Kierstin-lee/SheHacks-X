@@ -9,7 +9,7 @@ class ClothingItem(BaseModel):
     image_url: str
     type: str #top, bottom, shoes, outerwear, accessory
     color: str
-    season: str #winter, fall, spring, summer
+    season: List[str] #winter, fall, spring, summer
     occasion: List[str] #casual, formal, party, work, athletic, others?
 
 # What the user sends to the backend when they want an outfit
