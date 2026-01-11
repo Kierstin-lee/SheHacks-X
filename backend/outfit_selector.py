@@ -1,7 +1,7 @@
 # outfit_selector.py - Rules + scoring + variation blah
 
 from typing import List, Optional, Dict
-from models import ClothingItem, OutfitRequest, Outfit
+from models import ClothingItem, OutfitRequest
 from ai_interface import suggest_accessories, suggest_makeup
 
 import random
