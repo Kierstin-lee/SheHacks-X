@@ -18,7 +18,7 @@ class OutfitRequest(BaseModel):
     occasion: str
     preferences: List[str] #comfortable, modest, neutral/bright colours, others?
 
-# What the backend sends back the the frontend after generating an outfit
+# What the backend sends back the frontend after generating an outfit
 class OutfitResponse(BaseModel):
     outfit: dict #keys: top, bottom, shoes, outerwear?(temp dependent)
     accessories: List[ClothingItem]
