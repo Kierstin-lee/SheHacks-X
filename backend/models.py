@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel # library to allow FastAPI to validate and serialize data automatically
 from typing import List, Optional
+from enum import Enum
 
 # Represents a single piece of clothing in the closet
 class ClothingItem(BaseModel):
@@ -9,7 +10,7 @@ class ClothingItem(BaseModel):
     image_url: str
     type: str #top, bottom, shoes, outerwear, accessory
     color: str
-    season: List[str] #winter, fall, spring, summer
+    season: Season
     occasion: List[str] #casual, formal, party, work, athletic, others?
 
 # What the user sends to the backend when they want an outfit
@@ -24,3 +25,17 @@ class OutfitResponse(BaseModel):
     accessories: List[ClothingItem]
     makeup: str
     reasoning: str 
+
+class Season(str, Enum):
+    winter = "winter"
+    fall = "fall"
+    spring = "spring"
+    summer = "summer"
+
+class Occasion(str, Enum):
+    casual = "casual"
+    formal = "formal"
+    party = "party"
+    work = "work"
+    athletic = "athletic"
+    other = "other"
